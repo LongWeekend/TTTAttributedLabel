@@ -142,7 +142,6 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
 - (void)commonInit;
 - (void)setNeedsFramesetter;
 - (NSMutableAttributedString *) mutableAttributedText;
-- (NSRange) fullTextRange;
 - (CFRange) fullTextCFRange;
 - (void)detectLinksInString:(NSString *)text;
 - (NSArray *)detectedLinksInString:(NSString *)string range:(NSRange)range error:(NSError **)error;
@@ -396,10 +395,6 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
         [attrString addAttributes:attrs range:range];
     }];
     return [attrString autorelease];
-}
-
-- (NSRange) fullTextRange {
-    return NSMakeRange(0, [[self text] length]);
 }
 
 - (CFRange) fullTextCFRange {
