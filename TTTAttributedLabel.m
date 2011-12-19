@@ -548,6 +548,7 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
 #pragma mark - UILabel
 
 - (void)setText:(id)text {
+    // If the user passed a string, call this setter again passing a blank attributed string
     if ([text isKindOfClass:[NSString class]]) {
         NSAttributedString *attrString = [[NSAttributedString alloc] initWithString:text];
         [self setText:[attrString autorelease]];
