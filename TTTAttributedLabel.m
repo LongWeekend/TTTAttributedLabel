@@ -564,6 +564,22 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
     [super setText:[text string]];
 }
 
+// When UILabel properties change, our "muxed" attributed string may also change; reset the framesetter
+- (void)setFont:(UIFont *)font {
+    [super setFont:font];
+    [self setNeedsFramesetter];
+}
+
+- (void)setTextColor:(UIColor *)textColor {
+    [super setTextColor:textColor];
+    [self setNeedsFramesetter];
+}
+
+- (void)setHighlightedTextColor:(UIColor *)highlightedTextColor {
+    [super setHighlightedTextColor:highlightedTextColor];
+    [self setNeedsFramesetter];
+}
+
 - (CGRect)textRectForBounds:(CGRect)bounds limitedToNumberOfLines:(NSInteger)numberOfLines {
     // By default, the text will take the full bounds
     CGRect textRect = bounds;
