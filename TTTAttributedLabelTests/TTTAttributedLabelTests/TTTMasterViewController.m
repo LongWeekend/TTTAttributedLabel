@@ -23,6 +23,7 @@
                       @"OnlyChangeFontSizeWhenOneLine",
                       @"FontResizingLinks",
                       @"FontResizing",
+                      @"AgnosticPropertyOrder",
                       //@"AddNewTestControllerNameHere"
                       nil];
     }

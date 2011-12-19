@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		49612709149F47F800D639FA /* AgnosticPropertyOrder.m in Sources */ = {isa = PBXBuildFile; fileRef = 49612707149F47F800D639FA /* AgnosticPropertyOrder.m */; };
+		4961270A149F47F800D639FA /* AgnosticPropertyOrder.xib in Resources */ = {isa = PBXBuildFile; fileRef = 49612708149F47F800D639FA /* AgnosticPropertyOrder.xib */; };
 		499E56D2149753A400088BD3 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 499E56D1149753A400088BD3 /* UIKit.framework */; };
 		499E56D4149753A400088BD3 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 499E56D3149753A400088BD3 /* Foundation.framework */; };
 		499E56D6149753A400088BD3 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 499E56D5149753A400088BD3 /* CoreGraphics.framework */; };
@@ -30,6 +32,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		49612706149F47F800D639FA /* AgnosticPropertyOrder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AgnosticPropertyOrder.h; sourceTree = "<group>"; };
+		49612707149F47F800D639FA /* AgnosticPropertyOrder.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AgnosticPropertyOrder.m; sourceTree = "<group>"; };
+		49612708149F47F800D639FA /* AgnosticPropertyOrder.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = AgnosticPropertyOrder.xib; sourceTree = "<group>"; };
 		499E56CD149753A400088BD3 /* TTTAttributedLabelTests.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TTTAttributedLabelTests.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		499E56D1149753A400088BD3 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		499E56D3149753A400088BD3 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -78,6 +83,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		49612704149F47DC00D639FA /* 6 Order-Agnostic */ = {
+			isa = PBXGroup;
+			children = (
+				49612706149F47F800D639FA /* AgnosticPropertyOrder.h */,
+				49612707149F47F800D639FA /* AgnosticPropertyOrder.m */,
+				49612708149F47F800D639FA /* AgnosticPropertyOrder.xib */,
+			);
+			name = "6 Order-Agnostic";
+			sourceTree = "<group>";
+		};
 		499E56C2149753A300088BD3 = {
 			isa = PBXGroup;
 			children = (
@@ -135,6 +150,7 @@
 				499E570514975EF100088BD3 /* 3 Only Adjust Font if Lines = 1 */,
 				499E5764149B1B9200088BD3 /* 4 Font Resizing Links */,
 				499E575E149B147500088BD3 /* 5 Font Resizing Animation */,
+				49612704149F47DC00D639FA /* 6 Order-Agnostic */,
 			);
 			name = "Test Controllers & XIBs";
 			sourceTree = "<group>";
@@ -261,6 +277,7 @@
 				499E5763149B148B00088BD3 /* FontResizing.xib in Resources */,
 				499E5769149B1BAB00088BD3 /* FontResizingLinks.xib in Resources */,
 				499E5770149B3B0D00088BD3 /* VerticalAlignment.xib in Resources */,
+				4961270A149F47F800D639FA /* AgnosticPropertyOrder.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -280,6 +297,7 @@
 				499E5762149B148B00088BD3 /* FontResizing.m in Sources */,
 				499E5768149B1BAB00088BD3 /* FontResizingLinks.m in Sources */,
 				499E576F149B3B0D00088BD3 /* VerticalAlignment.m in Sources */,
+				49612709149F47F800D639FA /* AgnosticPropertyOrder.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

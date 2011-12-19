@@ -393,7 +393,7 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
     
     // Now add the original attributed text's attributes on top (override) the UILabel options
     [originalAttrString enumerateAttributesInRange:fullRange options:0 usingBlock:^(NSDictionary *attrs, NSRange range, BOOL *stop) {
-      [attrString addAttributes:attrs range:range];
+        [attrString addAttributes:attrs range:range];
     }];
     return [attrString autorelease];
 }
@@ -549,9 +549,8 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
 
 - (void)setText:(id)text {
     if ([text isKindOfClass:[NSString class]]) {
-        // The method call below will call back to this method with an NSAttributedString
-        // By returning here we avoid making the link array + calling super twice.
-        [self setText:text afterInheritingLabelAttributesAndConfiguringWithBlock:nil];
+        NSAttributedString *attrString = [[NSAttributedString alloc] initWithString:text];
+        [self setText:[attrString autorelease]];
         return;
     }
     else if ([text isKindOfClass:[NSAttributedString class]] == NO) {
