@@ -13,5 +13,6 @@
 
 @property (nonatomic, retain) IBOutlet TTTAttributedLabel *twoLineLabel;
 @property (nonatomic, retain) IBOutlet TTTAttributedLabel *oneLineLabel;
+@property (nonatomic, retain) IBOutlet TTTAttributedLabel *multilineLabel;
 
 @end

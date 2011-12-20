@@ -10,11 +10,12 @@
 
 @implementation OnlyChangeFontSizeWhenOneLine
 
-@synthesize oneLineLabel, twoLineLabel;
+@synthesize oneLineLabel, twoLineLabel, multilineLabel;
 
 - (void) dealloc {
     [oneLineLabel release];
     [twoLineLabel release];
+    [multilineLabel release];
     [super dealloc];
 }
 
@@ -30,6 +31,9 @@
     // to look like the UILabel??
     self.oneLineLabel.text = theString;
     self.twoLineLabel.text = theString;
+  
+    // OK, override the default UILabel behavior
+    self.multilineLabel.shouldResizeMultilineTextToFit = YES;
 }
 
 - (void)viewDidUnload {
