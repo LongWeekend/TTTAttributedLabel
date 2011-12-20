@@ -628,6 +628,10 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
     CFRange range = [self fullTextCFRange];
     CGRect textRect = [self textRectForBounds:rect limitedToNumberOfLines:self.numberOfLines];
   
+  // DEBUG - use this when you want to test what the textRect is and see if it's aligned properly.
+  //CGContextSetFillColorWithColor(c, [[UIColor blueColor] CGColor]);
+  //CGContextFillRect(c, textRect);
+  
     // Second, trace the shadow before the actual text, if we have one
     if (self.shadowColor && !self.highlighted) {
         CGContextSetShadowWithColor(c, self.shadowOffset, self.shadowRadius, [self.shadowColor CGColor]);
