@@ -135,7 +135,8 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
 - (NSTextCheckingResult *)linkAtPoint:(CGPoint)p;
 - (NSUInteger)characterIndexAtPoint:(CGPoint)p;
 - (void)drawFramesetter:(CTFramesetterRef)framesetter textRange:(CFRange)textRange inRect:(CGRect)rect context:(CGContextRef)c;
-- (NSAttributedString *) attributedTextToDisplay;
+- (NSAttributedString *)attributedTextToDisplay;
+- (NSAttributedString *)resizedStringToScale:(CGFloat)scale;
 - (CGFloat) fontScaleFactor;
 @end
 
@@ -274,7 +275,7 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
     return _highlightFramesetter;
 }
 
-#pragma mark - Public Methods
+#pragma mark - Public Methods - Links
 
 - (void)setDataDetectorTypes:(UIDataDetectorTypes)dataDetectorTypes {
     [self willChangeValueForKey:@"dataDetectorTypes"];
@@ -368,6 +369,8 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
     return CFRangeMake(0, [[self text] length]);
 }
 
+#pragma mark - Link Tap Detection Private Methods
+
 - (NSTextCheckingResult *)linkAtCharacterIndex:(CFIndex)idx {
     for (NSTextCheckingResult *result in self.links) {
         NSRange range = result.range;
@@ -436,6 +439,8 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
     return idx;
 }
 
+#pragma mark - Drawing Private Methods
+
 - (void)drawFramesetter:(CTFramesetterRef)framesetter textRange:(CFRange)textRange inRect:(CGRect)rect context:(CGContextRef)c {
     CGMutablePathRef path = CGPathCreateMutable();
     
@@ -468,12 +473,14 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
     CFRelease(path);
 }
 
+#pragma mark - Font Scaling Private Methods
+
 - (NSAttributedString *) attributedTextToDisplay {
-  if (self.resizedAttributedText) {
-      return self.resizedAttributedText;
-  } else {
-      return self.attributedText;
-  }
+    if (self.resizedAttributedText) {
+        return self.resizedAttributedText;
+    } else {
+        return self.attributedText;
+    }
 }
 
 - (CGFloat) fontScaleFactor {
@@ -497,6 +504,30 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
         }
     }
     return scaleFactor;
+}
+
+- (NSAttributedString *)resizedStringToScale:(CGFloat)scale {
+    NSMutableAttributedString *attrString = [[self.attributedText mutableCopy] autorelease];
+    [attrString enumerateAttribute:(NSString *)kCTFontAttributeName inRange:NSMakeRange(0, [attrString length]) options:0 usingBlock:^(id value, NSRange range, BOOL *stop) {
+        // Default to using the UILabel defaults, assuming we have no custom font sizes
+        CGFloat scaledFontSize = fmaxf(floorf(self.font.pointSize * scale), self.minimumFontSize);
+        CTFontRef scaledFont = NULL;
+        
+        CTFontRef font = (CTFontRef)value;
+        if (font) {
+            // Scale each existing font setting
+            scaledFontSize = floorf(CTFontGetSize(font) * scale);
+            scaledFont = CTFontCreateCopyWithAttributes(font, fmaxf(scaledFontSize, self.minimumFontSize), NULL, NULL);
+            CFAttributedStringSetAttribute((CFMutableAttributedStringRef)attrString, CFRangeMake(range.location, range.length), kCTFontAttributeName, scaledFont);
+        } else {
+            // Create a new CTFont with the UILabel font (we will override the UILabel setting when drawing)
+            scaledFont = CTFontCreateWithName((CFStringRef)self.font.fontName, scaledFontSize, NULL);
+            [attrString addAttribute:(NSString *)kCTFontAttributeName value:(id)scaledFont range:NSMakeRange(0, [self.text length])];
+        }
+        // We either created a new one or copied, so release either way
+        CFRelease(scaledFont);
+    }];
+    return attrString;
 }
 
 #pragma mark - UILabel
@@ -573,23 +604,6 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
     return textRect;
 }
 
-
-- (NSAttributedString *)resizeAttributedText:(NSAttributedString *)attributedString withScale:(CGFloat)scale {
-  NSMutableAttributedString *mutableAttributedString = [[attributedString mutableCopy] autorelease];
-  [mutableAttributedString enumerateAttribute:(NSString *)kCTFontAttributeName inRange:NSMakeRange(0, [mutableAttributedString length]) options:0 usingBlock:^(id value, NSRange range, BOOL *stop) {
-    CTFontRef font = (CTFontRef)value;
-    if (font) {
-      CGFloat scaledFontSize = floorf(CTFontGetSize(font) * scale);
-      CTFontRef scaledFont = CTFontCreateCopyWithAttributes(font, fmaxf(scaledFontSize, self.minimumFontSize), NULL, NULL);
-      CFAttributedStringSetAttribute((CFMutableAttributedStringRef)mutableAttributedString, CFRangeMake(range.location, range.length), kCTFontAttributeName, scaledFont);
-      CFRelease(scaledFont);
-    } else {
-      // TODO: add a font with the size that fits
-    }
-  }];
-  return mutableAttributedString;
-}
-
 - (void)drawTextInRect:(CGRect)rect {
     // Get the graphics context and push the state so we are a good CoreGraphics citizen
     CGContextRef c = UIGraphicsGetCurrentContext();
@@ -605,7 +619,7 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
     // If we have a font scale != 1.0f, adjust the font size to fit width.
     CGFloat fontScaleFactor = [self fontScaleFactor];
     if (fontScaleFactor < 1.0f) {
-        self.resizedAttributedText = [self resizeAttributedText:self.attributedText withScale:fontScaleFactor];
+        self.resizedAttributedText = [self resizedStringToScale:fontScaleFactor];
     } else {
         self.resizedAttributedText = nil;
     }
