@@ -156,6 +156,7 @@ typedef enum {
  */
 @property (nonatomic, assign) TTTAttributedLabelVerticalAlignment verticalAlignment;
 
+@property (nonatomic, assign) BOOL shouldResizeMultilineTextToFit;
 
 ///----------------------------------
 /// @name Setting the Text Attributes
@@ -169,16 +170,6 @@ typedef enum {
  @discussion This method overrides `UILabel -setText:` to accept both `NSString` and `NSAttributedString` objects. This string is `nil` by default.
  */
 - (void)setText:(id)text;
-
-/**
- Sets the text displayed by the label, after configuring an attributed string containing the text attributes inherited from the label in a block.
- 
- @param text An `NSString` or `NSAttributedString` object to be displayed by the label.
- @param block A block object that returns an `NSMutableAttributedString` object and takes a single argument, which is an `NSMutableAttributedString` object with the text from the first parameter, and the text attributes inherited from the label text styles. For example, if you specified the `font` of the label to be `[UIFont boldSystemFontOfSize:14]` and `textColor` to be `[UIColor redColor]`, the `NSAttributedString` argument of the block would be contain the `NSAttributedString` attribute equivalents of those properties. In this block, you can set further attributes on particular ranges.
- 
- @discussion This string is `nil` by default.
- */
-- (void)setText:(id)text afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString *(^)(NSMutableAttributedString *mutableAttributedString))block;
 
 ///-------------------
 /// @name Adding Links

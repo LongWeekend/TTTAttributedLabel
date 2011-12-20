@@ -115,21 +115,6 @@ static inline NSDictionary * NSAttributedStringAttributesFromLabel(TTTAttributed
     return [NSDictionary dictionaryWithDictionary:mutableAttributes];
 }
 
-static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttributedString *attributedString, CGFloat scale, CGFloat minimumFontSize) {    
-    NSMutableAttributedString *mutableAttributedString = [[attributedString mutableCopy] autorelease];
-    [mutableAttributedString enumerateAttribute:(NSString *)kCTFontAttributeName inRange:NSMakeRange(0, [mutableAttributedString length]) options:0 usingBlock:^(id value, NSRange range, BOOL *stop) {
-        CTFontRef font = (CTFontRef)value;
-        if (font) {
-            CGFloat scaledFontSize = floorf(CTFontGetSize(font) * scale);
-            CTFontRef scaledFont = CTFontCreateCopyWithAttributes(font, fmaxf(scaledFontSize, minimumFontSize), NULL, NULL);
-            CFAttributedStringSetAttribute((CFMutableAttributedStringRef)mutableAttributedString, CFRangeMake(range.location, range.length), kCTFontAttributeName, scaledFont);
-            CFRelease(scaledFont);
-        }
-    }];
-    
-    return mutableAttributedString;
-}
-
 @interface TTTAttributedLabel ()
 @property (readwrite, nonatomic, copy) NSAttributedString *attributedText;
 @property (readwrite, nonatomic, copy) NSAttributedString *resizedAttributedText; 
@@ -151,7 +136,7 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
 - (NSUInteger)characterIndexAtPoint:(CGPoint)p;
 - (void)drawFramesetter:(CTFramesetterRef)framesetter textRange:(CFRange)textRange inRect:(CGRect)rect context:(CGContextRef)c;
 - (NSAttributedString *) attributedTextToDisplay;
-- (BOOL)shouldAdjustFontSize;
+- (CGFloat) fontScaleFactor;
 @end
 
 @implementation TTTAttributedLabel
@@ -172,6 +157,7 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
 @synthesize textInsets = _textInsets;
 @synthesize verticalAlignment = _verticalAlignment;
 @synthesize tapGestureRecognizer = _tapGestureRecognizer;
+@synthesize shouldResizeMultilineTextToFit = _shouldResizeMultilineTextToFit;
 
 #pragma mark - Class Plumbing
 
@@ -232,34 +218,16 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
 
 #pragma mark - Setters & Getters
 
-- (void)setAttributedText:(NSAttributedString *)text {
-    if ([text isEqualToAttributedString:self.attributedText]) {
-        return;
-    }
-
-    [self willChangeValueForKey:@"attributedText"];
-    [_attributedText release];
-    _attributedText = [text copy];
-    [self didChangeValueForKey:@"attributedText"];
-    
-    [self setNeedsFramesetter];
-}
-
 - (void)setResizedAttributedText:(NSAttributedString *)text {
-    // Quick return on re-nil'ing
-    if (self.resizedAttributedText == nil && text == nil) {
+    // Quick return on re-nil'ing, same text as before
+    BOOL isNil = (self.resizedAttributedText == nil && text == nil);
+    BOOL isSame = ([text isEqualToAttributedString:self.resizedAttributedText]);
+    if (isNil || isSame) {
         return;
     }
   
-    // Quick return if it is the same text as before
-    if ([text isEqualToAttributedString:self.resizedAttributedText]) {
-        return;
-    }
-
-    [self willChangeValueForKey:@"resizedAttributedText"];
     [_resizedAttributedText release];
     _resizedAttributedText = [text copy];
-    [self didChangeValueForKey:@"resizedAttributedText"];
     
     [self setNeedsFramesetter];
 }
@@ -272,11 +240,11 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
     // If we have been explicitly instructed to recreate, or we don't have one, make a new framesetter
     if (_needsFramesetter || _framesetter == nil) {
         @synchronized(self) {
-            // This method muxes the label's properties with the attributed text set by the user
-            NSMutableAttributedString *attrText = [self mutableAttributedText];
-          
             if (_framesetter) CFRelease(_framesetter);
-            self.framesetter = CTFramesetterCreateWithAttributedString((CFAttributedStringRef)attrText);
+
+            // self.inheritedAttributedString muxes the label's properties with the attributed text set by the user,
+            // with the latter taking priority in case of a conflict
+            self.framesetter = CTFramesetterCreateWithAttributedString((CFAttributedStringRef)self.inheritedAttributedString);
           
             // _needsFramesetter was set to YES because something changed; clear our cached highlight one as well.
             if (_highlightFramesetter) CFRelease(_highlightFramesetter);
@@ -289,17 +257,16 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
 }
 
 - (CTFramesetterRef)highlightFramesetter {
-    // Consider making this an assert -- it is a programmer error to call this method w/o a highlighted text color
     if (self.highlightedTextColor == nil) {
-        return nil;
+        [NSException raise:NSInternalInconsistencyException format:@"Cannot call -highlightFramesetter w/o setting a highlightedTextColor"];
     }
   
     if (_highlightFramesetter == nil) {
         @synchronized(self) {
             // This method muxes the label's properties with the attributed text set by the user
-            NSMutableAttributedString *attrString = [self mutableAttributedText];
-            
-            // Add the highlighted text color
+            NSMutableAttributedString *attrString = self.inheritedAttributedString;
+          
+            // Add the highlighted text color - overriding everything (label settings, attr string settings)
             [attrString addAttribute:(NSString *)kCTForegroundColorAttributeName value:(id)[self.highlightedTextColor CGColor] range:NSMakeRange(0, attrString.length)];
             self.highlightFramesetter = CTFramesetterCreateWithAttributedString((CFAttributedStringRef)attrString);
         }
@@ -318,18 +285,18 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
         self.dataDetector = [NSDataDetector dataDetectorWithTypes:NSTextCheckingTypeFromUIDataDetectorType(self.dataDetectorTypes) error:nil];
       
         // Now re-parse our links, since we are detecting types now
-        [self detectLinksInString:[self.attributedText string]];
+        [self detectLinksInString:self.text];
     }
 }
 
 - (void)detectLinksInString:(NSString *)text {
-  self.links = [NSArray array];
-  if (self.dataDetectorTypes != UIDataDetectorTypeNone) {
-    NSArray *detectedLinks = [self detectedLinksInString:text range:NSMakeRange(0, [text length]) error:nil];
-    for (NSTextCheckingResult *result in detectedLinks) {
-      [self addLinkWithTextCheckingResult:result];
+    self.links = [NSArray array];
+    if (self.dataDetectorTypes != UIDataDetectorTypeNone) {
+        NSArray *detectedLinks = [self detectedLinksInString:text range:NSMakeRange(0, [text length]) error:nil];
+        for (NSTextCheckingResult *result in detectedLinks) {
+            [self addLinkWithTextCheckingResult:result];
+        }
     }
-  }
 }
 
 - (NSArray *)detectedLinksInString:(NSString *)string range:(NSRange)range error:(NSError **)error {
@@ -351,7 +318,7 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
     if (attributes) {
         NSMutableAttributedString *mutableAttributedString = [[[NSMutableAttributedString alloc] initWithAttributedString:self.attributedText] autorelease];
         [mutableAttributedString addAttributes:attributes range:result.range];
-        self.attributedText = mutableAttributedString;        
+        self.text = mutableAttributedString;
     }
 }
 
@@ -509,35 +476,27 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
   }
 }
 
-- (BOOL)shouldAdjustFontSize {
-    // Quick return if we're not supposed to adjust, or if the numLines isn't appropriate.
-    if (self.adjustsFontSizeToFitWidth == NO || self.numberOfLines != 1) {
-        return NO;
+- (CGFloat) fontScaleFactor {
+    CGFloat scaleFactor = 1.0f;
+    if (self.numberOfLines == 1 && self.adjustsFontSizeToFitWidth) {
+        // This behavior matches the UILabel's behavior
+        CGFloat textWidth = [self sizeThatFits:CGSizeZero].width;
+        if ((textWidth > self.frame.size.width) && (textWidth > 0.0f)) {
+            scaleFactor = (self.frame.size.width / textWidth);
+        }
+    } else if (self.numberOfLines > 1 && self.shouldResizeMultilineTextToFit) {
+        // shouldResizeMultilineTextToFit is a bool on this class that enables more funky text layouts
+        CGFloat textWidth = [self sizeThatFits:CGSizeZero].width;
+        CGFloat availableWidth = self.frame.size.width * self.numberOfLines;
+        if (self.lineBreakMode == UILineBreakModeWordWrap) {
+            // Can someone explain what this magic sauce does?
+            textWidth *= kTTTLineBreakWordWrapTextWidthScalingFactor;
+        }
+        if ((textWidth > availableWidth) && (textWidth > 0.0f)) {
+            scaleFactor = (availableWidth / textWidth);
+        }
     }
-
-    // sizeThatFits: will return a CGRect of the full line if numberOfLines == 1
-    CGFloat textWidth = [self sizeThatFits:CGSizeZero].width;
-    
-    // If the text is wider than our frame, we should scale it down.
-    return ((textWidth > self.frame.size.width) && (textWidth > 0.0f));
-}
-
-#pragma mark - TTTAttributedLabel
-
-- (void)setText:(id)text afterInheritingLabelAttributesAndConfiguringWithBlock:(NSMutableAttributedString *(^)(NSMutableAttributedString *mutableAttributedString))block {    
-    NSMutableAttributedString *mutableAttributedString = nil;
-    if ([text isKindOfClass:[NSString class]]) {
-        mutableAttributedString = [[[NSMutableAttributedString alloc] initWithString:text attributes:NSAttributedStringAttributesFromLabel(self)] autorelease];
-    } else {
-        mutableAttributedString = [[[NSMutableAttributedString alloc] initWithAttributedString:text] autorelease];
-        [mutableAttributedString addAttributes:NSAttributedStringAttributesFromLabel(self) range:NSMakeRange(0, [mutableAttributedString length])];
-    }
-    
-    if (block) {
-        mutableAttributedString = block(mutableAttributedString);
-    }
-    
-    [self setText:mutableAttributedString];
+    return scaleFactor;
 }
 
 #pragma mark - UILabel
@@ -553,9 +512,19 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
         [NSException raise:NSGenericException format:@"setText: only receives NSString or NSAttributedString instances."];
     }
     
-    self.attributedText = text;
-    [self detectLinksInString:[text string]];
+    // If it's the same string as before, quick return
+    if ([text isEqualToAttributedString:self.attributedText]) {
+        return;
+    }
     
+    // Actually update the value, with KVC calls in case anyone cares (but this property isn't publicly exposed?)
+    [self willChangeValueForKey:@"attributedText"];
+    [_attributedText release];
+    _attributedText = [text copy];
+    [self didChangeValueForKey:@"attributedText"];
+    
+    [self setNeedsFramesetter];
+    [self detectLinksInString:[text string]];
     [super setText:[text string]];
 }
 
@@ -604,6 +573,23 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
     return textRect;
 }
 
+
+- (NSAttributedString *)resizeAttributedText:(NSAttributedString *)attributedString withScale:(CGFloat)scale {
+  NSMutableAttributedString *mutableAttributedString = [[attributedString mutableCopy] autorelease];
+  [mutableAttributedString enumerateAttribute:(NSString *)kCTFontAttributeName inRange:NSMakeRange(0, [mutableAttributedString length]) options:0 usingBlock:^(id value, NSRange range, BOOL *stop) {
+    CTFontRef font = (CTFontRef)value;
+    if (font) {
+      CGFloat scaledFontSize = floorf(CTFontGetSize(font) * scale);
+      CTFontRef scaledFont = CTFontCreateCopyWithAttributes(font, fmaxf(scaledFontSize, self.minimumFontSize), NULL, NULL);
+      CFAttributedStringSetAttribute((CFMutableAttributedStringRef)mutableAttributedString, CFRangeMake(range.location, range.length), kCTFontAttributeName, scaledFont);
+      CFRelease(scaledFont);
+    } else {
+      // TODO: add a font with the size that fits
+    }
+  }];
+  return mutableAttributedString;
+}
+
 - (void)drawTextInRect:(CGRect)rect {
     // Get the graphics context and push the state so we are a good CoreGraphics citizen
     CGContextRef c = UIGraphicsGetCurrentContext();
@@ -616,10 +602,10 @@ static inline NSAttributedString * NSAttributedStringByScalingFontSize(NSAttribu
     CGContextScaleCTM(c, 1.0f, -1.0f);
     CGContextTranslateCTM(c, rect.origin.x, - (rect.origin.y + rect.size.height));
     
-    // Adjust the font size to fit width, if necessary.  By setting resizedAttributedText, we use it instead.
-    if ([self shouldAdjustFontSize]) {
-        CGFloat scaleFactor = (self.frame.size.width / [self sizeThatFits:CGSizeZero].width);
-        self.resizedAttributedText = NSAttributedStringByScalingFontSize(self.attributedText, scaleFactor, self.minimumFontSize);
+    // If we have a font scale != 1.0f, adjust the font size to fit width.
+    CGFloat fontScaleFactor = [self fontScaleFactor];
+    if (fontScaleFactor < 1.0f) {
+        self.resizedAttributedText = [self resizeAttributedText:self.attributedText withScale:fontScaleFactor];
     } else {
         self.resizedAttributedText = nil;
     }
