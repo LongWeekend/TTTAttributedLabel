@@ -28,8 +28,8 @@
   
     // Since our attributable string has no attributes, we would expect drawing
     // to look like the UILabel??
-    [self.oneLineLabel setText:theString afterInheritingLabelAttributesAndConfiguringWithBlock:nil];
-    [self.twoLineLabel setText:theString afterInheritingLabelAttributesAndConfiguringWithBlock:nil];
+    self.oneLineLabel.text = theString;
+    self.twoLineLabel.text = theString;
 }
 
 - (void)viewDidUnload {
